@@ -1,13 +1,27 @@
 describe("FiziksEndion",function(){
 
-  describe("Given a new universe", function(){
-    
-    var shouldInitialiseBodiesCorrectly = function(description, initialBodies){
+  var body1InitialLocation={x:1,y:2,z:3};
+  var body1InitialMomentum= {x:7,y:8,z:9};
+  var mass1= 20;
+  function newBody1(){
+    return {mass: mass1, location: new Vector3(body1InitialLocation), momentum: new Vector3(body1InitialMomentum) };
+  }
 
-      describe(description, function(){
-        var initialValues=[];
+  var body2InitialLocation={x:1,y:2,z:3};
+  var body2InitialMomentum= {x:7,y:8,z:9};
+  var mass2= 20;
+  function newBody2(){
+    return {mass: mass2, location: new Vector3(body2InitialLocation), momentum: new Vector3(body2InitialMomentum) };
+  }
+
+  describe("Given a new universe", function(){
+
+    var describeShouldInitialiseBodiesCorrectly = function(initialBodies){
+
+      describe("with " + initialBodies.length + " bodies with initial momentum", function(){
+        var originalBodyValues=[];
         initialBodies.forEach(function(b){
-             initialValues.push({mass:     b.mass,
+             originalBodyValues.push({mass:     b.mass,
                                  location: {x: b.location.x, y: b.location.y, z: b.location.z},
                                  momentum: {x:b.momentum.x, y: b.momentum.y, z: b.momentum.z}
                                 });
@@ -16,11 +30,11 @@ describe("FiziksEndion",function(){
         var fe= new FiziksEndion(null, initialBodies);
 
         it("the universe momentum should equal the object's momentum", function(){
-          var totalInitialMomentum= Vector3.sum( initialBodies.map(function(el){return el.momentum;}) );
-          expect(JSON.stringify(fe.momentum())).toBe( JSON.stringify(totalInitialMomentum) );
+          var totalOriginalMomentum= Vector3.sum( initialBodies.map(function(el){return el.momentum;}) );
+          expect(JSON.stringify(fe.momentum())).toBe( JSON.stringify(totalOriginalMomentum) );
         });
 
-        it("the universe should start with the passed-in body", function(){
+        it("the universe should start with the passed-in bodies", function(){
 
           expect(fe.bodies.length).toBe(initialBodies.length);
 
@@ -39,78 +53,47 @@ describe("FiziksEndion",function(){
       })
     };
 
-    var initialLocation1={x:1,y:2,z:3};
-    var initialMomentum1= {x:7,y:8,z:9};
-    var mass1= 20;
-    shouldInitialiseBodiesCorrectly(
-      "with one body with initial momentum",
-      [{mass: mass1, location: new Vector3(initialLocation1), momentum: new Vector3(initialMomentum1) }]
-      );
+    describeShouldInitialiseBodiesCorrectly( [newBody1()] );
+    describeShouldInitialiseBodiesCorrectly( [newBody1(),newBody2()] );
+    describeShouldInitialiseBodiesCorrectly( [newBody1(),newBody2(),newBody2(),newBody1(), newBody2()] );
+  });
 
-    var initialLocation2={x:1,y:2,z:3};
-    var initialMomentum2= {x:7,y:8,z:9};
-    var mass2= 20;
-    shouldInitialiseBodiesCorrectly(
-      "with two bodies with initial momentum",
-      [
-        {mass: mass1, location: new Vector3(initialLocation1), momentum: new Vector3(initialMomentum1) },
-        {mass: mass2, location: new Vector3(initialLocation2), momentum: new Vector3(initialMomentum2) }
-      ]
-    );
+  describe("Given a universe in which time has passed", function(){
 
+    var age=0;
+    var agedFe;
 
+    describe("it should conserve momentum", function(){
+      var itShouldGivenInitialBodiesAndAge= function (initialBodies, age) {
+          it("Given age " + age + " with " + initialBodies.length + " initial bodies.", function(){
+            var originalMomentum= Vector3.sum( initialBodies.map(function(b){return b.momentum;}) );
+            agedFe= new FiziksEndion(null, initialBodies);
+            agedFe.observer.age(age);
+            expect(JSON.stringify(agedFe.momentum())).toBe(JSON.stringify(originalMomentum));
+          });
+      };
+      itShouldGivenInitialBodiesAndAge([newBody1()], 1);
+      itShouldGivenInitialBodiesAndAge([newBody1(), newBody2(), newBody2(), newBody1()],9);
+    });
 
-    describe("Given a universe in which time has passed", function(){
-
-      var age=0;
-      var agedFe;
-
-      beforeEach(function(){
-        agedFe= new FiziksEndion(null, [ {mass:mass1, location: new Vector3(initialLocation1), momentum:new Vector3(initialMomentum1) } ]);
-      });
-
-      describe("should conserve momentum", function(){
-
-        function assertMomentumWasConservedAfterAging(){
-          agedFe.observer.age(age);
-          expect(JSON.stringify(agedFe.momentum())).toBe( JSON.stringify(initialMomentum1) );
-        }
-
-        it("Given time passed=1", function(){
-          age=1;
-          assertMomentumWasConservedAfterAging();
-        });
-
-        it("Given time passed=9", function(){
-          age=9;
-          assertMomentumWasConservedAfterAging();
-        });
-
-      });
-
-      describe("should move bodies according to their momentum", function(){
-
-        function assertObjectWasMovedAsExpectedAfterAging(){
-          agedFe.observer.age(age);
-          var object1= agedFe.bodies[0];
-          var expectedxd= initialLocation1.x + age * initialMomentum1.x / mass1;
-          var expectedyd= initialLocation1.y + age * initialMomentum1.y / mass1;
-          var expectedzd= initialLocation1.z + age * initialMomentum1.z / mass1;
-          expect(JSON.stringify(object1.location)).toBe( JSON.stringify( new Vector3( expectedxd, expectedyd, expectedzd) ) );
-        }
-
-        it("Given time passed=1", function(){
-          age=1;
-          assertObjectWasMovedAsExpectedAfterAging();
-        });
-
-        it("Given time passed=9", function(){
-          age=9;
-          assertObjectWasMovedAsExpectedAfterAging();
-        });
-
-      });
+    describe("it should move bodies according to their momentum", function(){
+      var itShouldGivenInitialBodiesAndAge= function(initialBodies,age){
+          it("Given age " + age + " and " + initialBodies.length + " bodies.", function(){
+            initialBodies.forEach(
+              function(b){
+                var expectedxd = b.location.x + age * b.momentum.x / b.mass;
+                var expectedyd = b.location.y + age * b.momentum.y / b.mass;
+                var expectedzd = b.location.z + age * b.momentum.z / b.mass;
+                agedFe= new FiziksEndion(null, initialBodies);
+                agedFe.observer.age(age);
+                expect(JSON.stringify(b.location)).toBe(JSON.stringify(new Vector3(expectedxd, expectedyd, expectedzd)));
+              }
+            );
+          });
+      };
+      itShouldGivenInitialBodiesAndAge([newBody1()],1);
+      itShouldGivenInitialBodiesAndAge([newBody1(),newBody2(),newBody2(),newBody1()],20);
     });
   });
-  
+
 });
