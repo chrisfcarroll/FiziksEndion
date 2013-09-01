@@ -58,36 +58,42 @@ function Physics(forceFields){
 
   this.forceFields = forceFields||[];
 
-  var principleOfInertia= function(unforcedBody,timeInterval){
-      unforcedBody.location.incrementBy( Vector3.timesScalar(unforcedBody.momentum, timeInterval / unforcedBody.mass) );
-  };
+  var principleOfInertia= {
+    apply : function(bodies,timeInterval){
+      bodies.forEach(function(unforcedBody){
+        unforcedBody.location.incrementBy( Vector3.timesScalar(unforcedBody.momentum, timeInterval / unforcedBody.mass) );
+      });
+    },
+
+    invariant : function(bodies){
+      return bodies.totalMomentum();
+    }
+  }
 
   this.timeInvariants= [ principleOfInertia ];
+  this.principleOfInertia= principleOfInertia;
 }
 
 function ReferenceFrame(bodies, physics){
   var physics= physics || new Physics([]);
-  var bodies=bodies||[];
+  var bodies= bodies||[];
   var time= 0;
+  this.bodies=bodies;
 
-  this.bodies=function(){return bodies;};
+  bodies.totalMomentum=function(){
+    return Vector3.sum( bodies.map(function(b){return b.momentum;}) );
+  };
 
   this.age=function(timeInterval){
     if (timeInterval!==undefined){
-      bodies.forEach(function(body){
-        physics.timeInvariants.forEach(function(invariant){
-          invariant(body,timeInterval);
-        });
+      physics.timeInvariants.forEach(function(invariant){
+        invariant.apply(bodies,timeInterval);
       });
       time+=timeInterval;
     }
     return time;
   };
 
-  this.totalMomentum=function(){
-    return Vector3.sum(
-      bodies.map(function(b){return b.momentum;})
-    );
-  };
+  this.totalMomentum=bodies.totalMomentum;
 }
 

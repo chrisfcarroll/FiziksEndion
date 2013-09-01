@@ -1,18 +1,20 @@
-describe("Physics",function(){
-
-  var body1InitialLocation={x:1,y:2,z:3};
-  var body1InitialMomentum= {x:7,y:8,z:9};
-  var mass1= 20;
-  function newBody1(){
+var testCase={
+  newBody1 : function(){
+    var body1InitialLocation={x:1,y:2,z:3};
+    var body1InitialMomentum= {x:7,y:8,z:9};
+    var mass1= 20;
     return {mass: mass1, location: new Vector3(body1InitialLocation), momentum: new Vector3(body1InitialMomentum) };
-  }
+  },
 
-  var body2InitialLocation={x:1,y:2,z:3};
-  var body2InitialMomentum= {x:7,y:8,z:9};
-  var mass2= 20;
-  function newBody2(){
+  newBody2 : function(){
+    var body2InitialLocation={x:1,y:2,z:3};
+    var body2InitialMomentum= {x:7,y:8,z:9};
+    var mass2= 20;
     return {mass: mass2, location: new Vector3(body2InitialLocation), momentum: new Vector3(body2InitialMomentum) };
   }
+};
+
+describe("FizikEndion - a simple mechanics and physics framework. Initialization.", function(){
 
   describe("Given a new universe", function(){
 
@@ -36,9 +38,9 @@ describe("Physics",function(){
 
         it("the universe should start with the passed-in bodies", function(){
 
-          expect(rf.bodies().length).toBe(initialBodies.length);
+          expect(rf.bodies.length).toBe(initialBodies.length);
 
-          rf.bodies().forEach(function(bodyi, i){
+          rf.bodies.forEach(function(bodyi, i){
             expect( bodyi.mass).toBe( initialBodies[i].mass);
             expect( bodyi.location.x).toBe(initialBodies[i].location.x);
             expect( bodyi.location.y).toBe(initialBodies[i].location.y);
@@ -53,9 +55,9 @@ describe("Physics",function(){
       })
     };
 
-    describeShouldInitialiseBodiesCorrectly( [newBody1()] );
-    describeShouldInitialiseBodiesCorrectly( [newBody1(),newBody2()] );
-    describeShouldInitialiseBodiesCorrectly( [newBody1(),newBody2(),newBody2(),newBody1(), newBody2()] );
+    describeShouldInitialiseBodiesCorrectly( [testCase.newBody1()] );
+    describeShouldInitialiseBodiesCorrectly( [testCase.newBody1(),testCase.newBody2()] );
+    describeShouldInitialiseBodiesCorrectly( [testCase.newBody1(),testCase.newBody2(),testCase.newBody2(),testCase.newBody1(), testCase.newBody2()] );
   });
 
   describe("Given a universe in which time has passed", function(){
@@ -74,8 +76,8 @@ describe("Physics",function(){
           });
       };
 
-      itShouldGivenInitialBodiesAndAge([newBody1()], 1);
-      itShouldGivenInitialBodiesAndAge([newBody1(), newBody2(), newBody2(), newBody1()],9);
+      itShouldGivenInitialBodiesAndAge([testCase.newBody1()], 1);
+      itShouldGivenInitialBodiesAndAge([testCase.newBody1(), testCase.newBody2(), testCase.newBody2(), testCase.newBody1()],9);
     });
 
     describe("it should apply momentum by moving bodies at constant velocity", function(){
@@ -95,8 +97,8 @@ describe("Physics",function(){
           });
       };
 
-      itShouldGivenInitialBodiesAndAge([newBody1()],1);
-      itShouldGivenInitialBodiesAndAge([newBody1(),newBody2(),newBody2(),newBody1()],20);
+      itShouldGivenInitialBodiesAndAge([testCase.newBody1()],1);
+      itShouldGivenInitialBodiesAndAge([testCase.newBody1(),testCase.newBody2(),testCase.newBody2(),testCase.newBody1()],20);
     });
   });
 
