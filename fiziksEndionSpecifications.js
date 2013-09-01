@@ -1,4 +1,4 @@
-describe("FiziksEndion",function(){
+describe("Physics",function(){
 
   var body1InitialLocation={x:1,y:2,z:3};
   var body1InitialMomentum= {x:7,y:8,z:9};
@@ -27,18 +27,18 @@ describe("FiziksEndion",function(){
                                 });
           });
 
-        var fe= new FiziksEndion(null, initialBodies);
+        var rf= new ReferenceFrame(initialBodies);
 
         it("the universe momentum should equal the object's momentum", function(){
           var totalOriginalMomentum= Vector3.sum( initialBodies.map(function(el){return el.momentum;}) );
-          expect(JSON.stringify(fe.momentum())).toBe( JSON.stringify(totalOriginalMomentum) );
+          expect(JSON.stringify(rf.totalMomentum())).toBe( JSON.stringify(totalOriginalMomentum) );
         });
 
         it("the universe should start with the passed-in bodies", function(){
 
-          expect(fe.bodies.length).toBe(initialBodies.length);
+          expect(rf.bodies().length).toBe(initialBodies.length);
 
-          fe.bodies.forEach(function(bodyi, i){
+          rf.bodies().forEach(function(bodyi, i){
             expect( bodyi.mass).toBe( initialBodies[i].mass);
             expect( bodyi.location.x).toBe(initialBodies[i].location.x);
             expect( bodyi.location.y).toBe(initialBodies[i].location.y);
@@ -61,22 +61,25 @@ describe("FiziksEndion",function(){
   describe("Given a universe in which time has passed", function(){
 
     var age=0;
-    var agedFe;
+    var agedRF;
 
     describe("it should conserve momentum", function(){
+
       var itShouldGivenInitialBodiesAndAge= function (initialBodies, age) {
           it("Given age " + age + " with " + initialBodies.length + " initial bodies.", function(){
             var originalMomentum= Vector3.sum( initialBodies.map(function(b){return b.momentum;}) );
-            agedFe= new FiziksEndion(null, initialBodies);
-            agedFe.observer.age(age);
-            expect(JSON.stringify(agedFe.momentum())).toBe(JSON.stringify(originalMomentum));
+            agedRF= new ReferenceFrame(initialBodies);
+            agedRF.age(age);
+            expect(JSON.stringify(agedRF.totalMomentum())).toBe(JSON.stringify(originalMomentum));
           });
       };
+
       itShouldGivenInitialBodiesAndAge([newBody1()], 1);
       itShouldGivenInitialBodiesAndAge([newBody1(), newBody2(), newBody2(), newBody1()],9);
     });
 
-    describe("it should move bodies according to their momentum", function(){
+    describe("it should apply momentum by moving bodies at constant velocity", function(){
+
       var itShouldGivenInitialBodiesAndAge= function(initialBodies,age){
           it("Given age " + age + " and " + initialBodies.length + " bodies.", function(){
             initialBodies.forEach(
@@ -84,13 +87,14 @@ describe("FiziksEndion",function(){
                 var expectedxd = b.location.x + age * b.momentum.x / b.mass;
                 var expectedyd = b.location.y + age * b.momentum.y / b.mass;
                 var expectedzd = b.location.z + age * b.momentum.z / b.mass;
-                agedFe= new FiziksEndion(null, initialBodies);
-                agedFe.observer.age(age);
+                agedRF= new ReferenceFrame(initialBodies);
+                agedRF.age(age);
                 expect(JSON.stringify(b.location)).toBe(JSON.stringify(new Vector3(expectedxd, expectedyd, expectedzd)));
               }
             );
           });
       };
+
       itShouldGivenInitialBodiesAndAge([newBody1()],1);
       itShouldGivenInitialBodiesAndAge([newBody1(),newBody2(),newBody2(),newBody1()],20);
     });
