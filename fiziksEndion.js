@@ -1,153 +1,183 @@
-_.sum= function(list){ return _.reduce(list, function(sumSoFar, nextValue){ return sumSoFar + nextValue; }, 0);};
-
-function Vector3(x,y,z){
-  if(typeof x === "object"){
-    this.x= x.x;
-    this.y= x.y;
-    this.z= x.z;
-  }else{
-    this.x=x;
-    this.y=y;
-    this.z=z;
-  }
-
-  this.magnitudeSquared=function(){
-    return this.x * this.x + this.y * this.y + this.z * this.z;
-  }
-
-  this.magnitude=function(){
-    return Math.sqrt( this.magnitudeSquared() );
-  };
-
-  this.direction= function(){
-    var size= this.magnitude();
-    return new Vector3(this.x/size, this.y/size, this.z/size);
-  };
-
-  this.incrementBy = function(rightOperand){
-      this.x += rightOperand.x;
-      this.y += rightOperand.y;
-      this.z += rightOperand.z;
-      return this;
-  };
-
-  this.scaleBy=function(scalar){
-    this.x *=scalar;
-    this.y *=scalar;
-    this.z *=scalar;
-    return this;
-  };
-}
-
-Vector3.add = function(left,right){
-  return new Vector3(left.x + right.x, left.y + right.y, left.z + right.z);
+/// <reference path="lib/underscore-typed.d.ts" />
+_.sum = function (list) {
+    return _.reduce(list, function (sumSoFar, nextValue) {
+        return sumSoFar + nextValue;
+    }, 0);
 };
 
-Vector3.timesScalar = function(vector3,scalar){
-  if(arguments.length==1){
-    scalar=vector3;
-    vector3=this;
-  }
-  return new Vector3(vector3.x * scalar, vector3.y  * scalar, vector3.z  * scalar);
-};
+var Vector3 = (function () {
+    function Vector3(x, y, z) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+    }
+    Vector3.prototype.magnitudeSquared = function () {
+        return this.x * this.x + this.y * this.y + this.z * this.z;
+    };
 
-Vector3.sum = function(arrayOfVector3s){
-  var totalx= 0, totaly= 0, totalz=0;
-  arrayOfVector3s.forEach(function(el){
-    totalx += el.x;
-    totaly += el.y;
-    totalz += el.z;
-  });
-  return new Vector3(totalx, totaly, totalz);
-};
+    Vector3.prototype.magnitude = function () {
+        return Math.sqrt(this.magnitudeSquared());
+    };
+
+    Vector3.prototype.direction = function () {
+        var size = this.magnitude();
+        return new Vector3(this.x / size, this.y / size, this.z / size);
+    };
+
+    Vector3.prototype.timesScalar = function (scalar) {
+        return new Vector3(this.x * scalar, this.y * scalar, this.z * scalar);
+    };
+
+    Vector3.prototype.add = function (right) {
+        return new Vector3(this.x + right.x, this.y + right.y, this.z + right.z);
+    };
+
+    Vector3.zero = new Vector3(0, 0, 0);
+
+    Vector3.sum = function (arrayOfVector3s) {
+        var totalx = 0, totaly = 0, totalz = 0;
+        arrayOfVector3s.forEach(function (el) {
+            totalx += el.x;
+            totaly += el.y;
+            totalz += el.z;
+        });
+        return new Vector3(totalx, totaly, totalz);
+    };
+    return Vector3;
+})();
 
 /*
- * Represents a body as seen from a reference frame
- */
-function Body(mass,location,momentum){
-  this.mass=mass;
-  this.location=location;
-  this.momentum=momentum;
-  this.velocity=function(){return Vector3.timesScalar(this.momentum, 1.0/this.mass);}
-}
-
-function BigSelfPoweredEngine(maxOutput){
-  if(typeof maxOutput != 'number'){
-    throw "BigSelfPoweredEngine(maxOutput) must be called with a maxOutput value.";
-  }
-  var attachedToBody;
-  this.attachTo= function(body){
-    attachedToBody=body;
-    body.engines= body.engines||[this];
-  }
-  this.force= function(){return Vector3.timesScalar(attachedToBody.momentum.direction(), maxOutput);}
-}
-
-function Physics(forceFields){
-
-  this.forceFields = forceFields||[];
-
-  var principleOfInertia= {
-    apply : function(bodies,timeInterval){
-      bodies.forEach(function(unforcedBody){
-        unforcedBody.location.incrementBy( Vector3.timesScalar(unforcedBody.momentum, timeInterval / unforcedBody.mass) );
-      });
-    },
-
-    invariant : function(bodies){
-      return bodies.totalMomentum();
+* Represents a body as seen from a reference frame
+*/
+var Body = (function () {
+    function Body(mass, location, momentum) {
+        if (typeof momentum === "undefined") { momentum = Vector3.zero; }
+        this.mass = mass;
+        this.location = location;
+        this.momentum = momentum;
     }
+    Body.prototype.velocity = function () {
+        return this.momentum.timesScalar(1.0 / this.mass);
+    };
+    Body.prototype.moveBy = function (vector) {
+        this.location = this.location.add(vector);
+    };
+    Body.prototype.applyForce = function (force, timeInterval) {
+        this.moveBy(force.timesScalar(timeInterval * timeInterval / this.mass / 2));
+        this.momentum = this.momentum.add(force.timesScalar(timeInterval));
+    };
 
-  };
+    Body.from = function (body) {
+        return new Body(body.mass, body.location, body.momentum);
+    };
+    return Body;
+})();
 
-  var lawOfConservationOfEnergy= {
-    apply : function(bodies, timeInterval){
-      _.filter(bodies, function(body){return body.engines!=undefined;})
-       .forEach(function(body){
-          body.engines.forEach(function(engine){
-            var initialKineticEnergy= lawOfConservationOfEnergy.kineticEnergy(body);
-            body.location.incrementBy( Vector3.timesScalar(engine.force(), timeInterval * timeInterval / body.mass / 2) );
-            body.momentum.incrementBy( Vector3.timesScalar( engine.force(), timeInterval ) );
-            energyUsed=lawOfConservationOfEnergy.kineticEnergy(body) - initialKineticEnergy;
-          });
-        });
-    },
-
-    invariant : function(engines, bodies){
-      return _sum(bodies.map(function(body){  return lawOfConservationOfEnergy.kineticEnergy(body); }));
-    },
-
-    kineticEnergy : function(body){
-      return body.momentum.magnitudeSquared()  / body.mass / 2;
+var Universe = (function () {
+    function Universe(bodies, _physics, entropy) {
+        if (typeof _physics === "undefined") { _physics = Physics.Current; }
+        if (typeof entropy === "undefined") { entropy = 0; }
+        this.bodies = bodies;
+        this._physics = _physics;
+        this.entropy = entropy;
     }
-  };
+    Universe.prototype.totalMomentum = function () {
+        return this._physics.principleOfInertia.invariant(this);
+    };
 
+    Universe.prototype.totalKineticEnergy = function () {
+        return this._physics.lawOfConservationOfEnergy.invariant(this);
+    };
+    return Universe;
+})();
 
-  this.timeInvariants= [ principleOfInertia, lawOfConservationOfEnergy ];
-  this.principleOfInertia= principleOfInertia;
-  this.lawOfConservationOfEnergy= lawOfConservationOfEnergy;
-}
-
-function ReferenceFrame(bodies, physics){
-  var physics= physics || new Physics([]);
-  var bodies= bodies||[];
-  var time= 0;
-  this.bodies=bodies;
-
-  bodies.totalMomentum=function(){
-    return Vector3.sum( bodies.map(function(b){return b.momentum;}) );
-  };
-
-  this.age=function(timeInterval){
-    if (timeInterval!==undefined){
-      physics.timeInvariants.forEach(function(invariant){
-        invariant.apply(bodies,timeInterval);
-      });
-      time+=timeInterval;
+var BigSelfPoweredConstantDirectionEngine = (function () {
+    function BigSelfPoweredConstantDirectionEngine(force, initialEnergy) {
+        if (typeof force === "undefined") { force = Vector3.zero; }
+        if (typeof initialEnergy === "undefined") { initialEnergy = 0; }
     }
-    return time;
-  };
+    BigSelfPoweredConstantDirectionEngine.prototype.attachTo = function (body) {
+        this.attachedBody = body;
+        body.engines = body.engines || [this];
+    };
 
-  this.totalMomentum=bodies.totalMomentum;
+    BigSelfPoweredConstantDirectionEngine.prototype.applyForce = function (timeInterval) {
+        if (this.attachedBody) {
+            var initialKineticEnergy = Physics.Current.lawOfConservationOfEnergy.kineticEnergy(this.attachedBody);
+            this.attachedBody.applyForce(this.force, timeInterval);
+            var energyUsed = Physics.Current.lawOfConservationOfEnergy.kineticEnergy(this.attachedBody) - initialKineticEnergy;
+            this.energyStored -= energyUsed;
+        }
+    };
+    return BigSelfPoweredConstantDirectionEngine;
+})();
+
+var Physics = (function () {
+    function Physics() {
+        this.forceFields = [];
+        this.principleOfInertia = {
+            apply: function (bodies, timeInterval) {
+                bodies.forEach(function (unforcedBody) {
+                    unforcedBody.moveBy(unforcedBody.momentum.timesScalar(timeInterval / unforcedBody.mass));
+                });
+            },
+            invariant: function (universe) {
+                return Vector3.sum(universe.bodies.map(function (b) {
+                    return b.momentum;
+                }));
+            }
+        };
+        this.lawOfConservationOfEnergy = {
+            apply: function (bodies, timeInterval) {
+                _.filter(bodies, function (body) {
+                    return body.engines != undefined;
+                }).forEach(function (body) {
+                    (body.engines).forEach(function (engine) {
+                        engine.applyForce(timeInterval);
+                    });
+                });
+            },
+            invariant: function (universe) {
+                return _.sum(universe.bodies.map(function (body) {
+                    var sumOfEnergyInAttachedEngines = body.engines ? _.sum((body.engines).map(function (e) {
+                        return e.energyStored;
+                    })) : 0;
+                    return this.lawOfConservationOfEnergy.kineticEnergy(body) + sumOfEnergyInAttachedEngines + universe.entropy;
+                }));
+            },
+            kineticEnergy: function (body) {
+                return body.momentum.magnitudeSquared() / body.mass / 2;
+            }
+        };
+        this.timeInvariants = [this.principleOfInertia, this.lawOfConservationOfEnergy];
+    }
+    Physics.Current = new Physics();
+    return Physics;
+})();
+
+function ReferenceFrame(bodies, physics) {
+    var physics = physics || Physics.Current;
+    this.universe = new Universe(bodies, physics);
+    var time = 0;
+
+    this.age = function (timeInterval) {
+        if (timeInterval !== undefined) {
+            physics.timeInvariants.forEach(function (invariant) {
+                invariant.apply(bodies, timeInterval);
+            });
+            time += timeInterval;
+        }
+        return time;
+    };
+
+    this.currentMomentum = function () {
+        return this.universe.totalMomentum();
+    };
+    this.currentKineticEnergy = function () {
+        return this.universe.totalKineticEnergy();
+    };
+    this.entropy = function () {
+        return universe.entropy;
+    };
 }
-
+//# sourceMappingURL=fiziksEndion.js.map

@@ -1,31 +1,9 @@
 describe("Vector3", function(){
 
-  it("instance incrementBy should add the instance fields", function(){
-
-    var left= new Vector3(1,2,3);
-    var right= new Vector3(10,20,30);
-    left.incrementBy(right);
-
-    expect(left.x).toBe(11);
-    expect(left.y).toBe(22);
-    expect(left.z).toBe(33);
-  });
-
-  it("instance scaleBy should scale the instance fields", function(){
-
-    var vector= new Vector3(1,2,3);
-    var scale=9;
-    vector.scaleBy(scale);
-
-    expect(vector.x).toBe( 9);
-    expect(vector.y).toBe(18);
-    expect(vector.z).toBe(27);
-  });
-
  describe("static addition", function(){
    var left= new Vector3(1,2,3);
    var right= new Vector3(10,20,30);
-   var result= Vector3.add(left,right);
+   var result= left.add(right);
 
    it("should return a correctly added result", function(){
      expect(result.x).toBe(11);
@@ -51,7 +29,7 @@ describe("Vector3", function(){
 
     var vector3= new Vector3(1,2,3);
     var scalar= 45.6;
-    var result= Vector3.timesScalar(vector3,scalar);
+    var result= vector3.timesScalar(scalar);
 
     it("should return a correctly scaled result", function(){
       expect(result.x).toBe(45.6);
