@@ -1,15 +1,4 @@
-// interim solution while I haven't got Jasmine 2 addMatchers() working
-var expectToBeStringifiedEqual= function(actual,expected){
-  return expect(JSON.stringify(actual)).toBe(JSON.stringify(expected));
-}
-
-var expectVectorsToMatchWithPrecision10 = function(left, right){
- expect(left.x).toBeCloseTo(right.x, 10);
- expect(left.y).toBeCloseTo(right.y, 10);
- expect(left.z).toBeCloseTo(right.z, 10);
-}
-
-var testCase = {
+var testCaseData = {
   newBody1: function () {
     var location = new Vector3(1,2,3);
     var momentum = new Vector3(7,8,9);
@@ -29,14 +18,31 @@ var testCase = {
   }
 };
 
+var testInitialBodies= [
+  [testCaseData.newBody1()],
+  [testCaseData.newBody1(), testCaseData.newBody2()],
+  [testCaseData.newBody1(), testCaseData.newBody2(), testCaseData.newBody2(), testCaseData.newBody1()]
+];
 
+function doForAllTestInitialBodiesAndAges(callback){
+  for(var i in testInitialBodies){
+    var initialBodies= testInitialBodies[i];
+    var testAges = testAges = [1, 9, 90];
+    for(var j in  testAges){
+      var age=testAges[j];
+
+      callback(initialBodies,age);
+    }
+  }
+}
 
 describe("FiziksEndion - a simple mechanics and physics framework. Initialization.", function () {
 
+  beforeEach(addFiziksEndionCustomMatchers);
 
   describe("Given a new universe", function () {
-
-    var describeShouldInitialiseBodiesCorrectly = function (initialBodies) {
+    for(var i in testInitialBodies){
+      var initialBodies= testInitialBodies[i];
 
       describe("with " + initialBodies.length + " bodies with initial momentum", function () {
         var originalBodyValues = [];
@@ -47,90 +53,73 @@ describe("FiziksEndion - a simple mechanics and physics framework. Initializatio
           });
         });
 
-        var rf = new ReferenceFrame(initialBodies);
-
         it("the universe momentum should equal the object's momentum", function () {
-          var totalOriginalMomentum = Vector3.sum(initialBodies.map(function (el) {
-            return el.momentum;
-          }));
-          expectToBeStringifiedEqual(rf.currentMomentum() ,totalOriginalMomentum);
+          var totalOriginalMomentum
+            = Vector3.sum(initialBodies.map(function (el) {return el.momentum;}));
+          var rf = new ReferenceFrame(initialBodies);
+          expect(rf.currentMomentum()).vectorToBeCloseTo(totalOriginalMomentum);
         });
 
         it("the universe should start with the passed-in bodies", function () {
-
+          var rf = new ReferenceFrame(initialBodies);
           expect(rf.universe.bodies.length).toBe(initialBodies.length);
-
           rf.universe.bodies.forEach(function (bodyi, i) {
             expect(bodyi.mass).toBe(initialBodies[i].mass);
-            expect(bodyi.location.x).toBe(initialBodies[i].location.x);
-            expect(bodyi.location.y).toBe(initialBodies[i].location.y);
-            expect(bodyi.location.z).toBe(initialBodies[i].location.z);
-            expect(bodyi.momentum.x).toBe(initialBodies[i].momentum.x);
-            expect(bodyi.momentum.y).toBe(initialBodies[i].momentum.y);
-            expect(bodyi.momentum.z).toBe(initialBodies[i].momentum.z);
+            expect(bodyi.location).vectorToBeCloseTo(initialBodies[i].location);
+            expect(bodyi.location).vectorToBeCloseTo(initialBodies[i].location);
+            expect(bodyi.momentum).vectorToBeCloseTo(initialBodies[i].momentum);
             expect(JSON.stringify(bodyi)).toBe(JSON.stringify(initialBodies[i]));
           });
         });
-
-      })
-    };
-
-    describeShouldInitialiseBodiesCorrectly([testCase.newBody1()]);
-    describeShouldInitialiseBodiesCorrectly([testCase.newBody1(), testCase.newBody2()]);
-    describeShouldInitialiseBodiesCorrectly([testCase.newBody1(), testCase.newBody2(), testCase.newBody2(),
-                                             testCase.newBody1(), testCase.newBody2()]);
+      });
+    }
   });
-
 });
 
 describe("FiziksEndion - Principle of Inertia.", function () {
 
+  beforeEach(addFiziksEndionCustomMatchers);
+
   describe("Given a universe in which time has passed", function () {
 
-    var age = 0;
-    var agedRF;
-
     describe("it should conserve momentum", function () {
+      doForAllTestInitialBodiesAndAges(function(initialBodies,age){
 
-      var itShouldGivenInitialBodiesAndAge = function (initialBodies, age) {
-        it("Given age " + age + " with " + initialBodies.length + " initial bodies.", function () {
-          var originalMomentum = Vector3.sum(initialBodies.map(function (b) {
-            return b.momentum;
-          }));
-          agedRF = new ReferenceFrame(initialBodies);
-          agedRF.age(age);
-          expect(JSON.stringify(agedRF.currentMomentum())).toBe(JSON.stringify(originalMomentum));
+          it("Given age " + age + " with " + initialBodies.length + " initial bodies.", function () {
+            var originalMomentum
+                = Vector3.sum(initialBodies.map(function (b) { return b.momentum; }));
+            var agedRF = new ReferenceFrame(initialBodies);
+            agedRF.age(age);
+            expect(JSON.stringify(agedRF.currentMomentum())).toBe(JSON.stringify(originalMomentum));
+          })
         });
-      };
-
-      itShouldGivenInitialBodiesAndAge([testCase.newBody1()], 1);
-      itShouldGivenInitialBodiesAndAge([testCase.newBody1(), testCase.newBody2(), testCase.newBody2(), testCase.newBody1()], 9);
     });
 
     describe("it should apply momentum by moving bodies at constant velocity", function () {
+      doForAllTestInitialBodiesAndAges(function (initialBodies, age) {
 
-      var itShouldGivenInitialBodiesAndAge = function (initialBodies, age) {
         it("Given age " + age + " and " + initialBodies.length + " bodies.", function () {
           initialBodies.forEach(
             function (b) {
               var expectedxd = b.location.x + age * b.momentum.x / b.mass;
               var expectedyd = b.location.y + age * b.momentum.y / b.mass;
               var expectedzd = b.location.z + age * b.momentum.z / b.mass;
-              agedRF = new ReferenceFrame(initialBodies);
+              var agedRF = new ReferenceFrame(initialBodies);
               agedRF.age(age);
-              expectVectorsToMatchWithPrecision10(b.location, new Vector3(expectedxd, expectedyd, expectedzd));
+              expect("Expectations should work").toBe("Expectations should work");
+              expect(b.location).vectorToBeCloseTo(new Vector3(expectedxd, expectedyd, expectedzd));
             }
           );
         });
-      };
-
-      itShouldGivenInitialBodiesAndAge([testCase.newBody1()], 1);
-      itShouldGivenInitialBodiesAndAge([testCase.newBody1(), testCase.newBody2(), testCase.newBody2(), testCase.newBody1()], 20);
+      });
     });
   });
 });
 
+
 describe("FiziksEndion - Conservation of Energy", function () {
+
+  beforeEach(addFiziksEndionCustomMatchers());
 
   var rfUnderTest;
 
@@ -178,7 +167,7 @@ describe("FiziksEndion - Conservation of Energy", function () {
       describe("Given a self powered engine applying a constant force to a body for more time", function () {
 
         beforeEach(function(){
-          var bodies = testCase.createBodies();
+          var bodies = testCaseData.createBodies();
           new BigSelfPoweredConstantDirectionEngine(new Vector3(10, 11, 12)).attachTo(bodies[0]);
           rfUnderTest = new ReferenceFrame(bodies);
         });

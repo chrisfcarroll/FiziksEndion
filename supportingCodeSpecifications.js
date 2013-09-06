@@ -1,3 +1,45 @@
+//// interim solution while I haven't got Jasmine 2 addMatchers() working
+//var expectToBeStringifiedEqual= function(actual,expected){
+//  return expect(JSON.stringify(actual)).toBe(JSON.stringify(expected));
+//}
+
+var toBeStringifyEqualTo= function () {
+  return {
+    compare: function (actual, expected) {
+      var sActual = JSON.stringify(actual);
+      var sExpected = JSON.stringify(expected);
+      return {
+        pass: sActual == sExpected
+      };
+    }
+  };
+};
+var vectorToBeCloseTo= function(){
+  var defaultRequiredPrecision=15;
+  return {
+    compare: function (actual, expected,precision) {
+      var precision= precision!==undefined ? precision : defaultRequiredPrecision;
+      var xOk= window.j$.matchers.toBeCloseTo().compare(actual.x,expected.x,precision).pass;
+      var yOk= window.j$.matchers.toBeCloseTo().compare(actual.y,expected.y,precision).pass;
+      var zOk= window.j$.matchers.toBeCloseTo().compare(actual.z,expected.z,precision).pass;
+      var not= this.isNot ? " not" : "";
+      var pass= xOk && yOk && zOk;
+      return {
+        pass: pass,
+        message : "Expected " + JSON.stringify(actual) + (pass?" not ":"") + "to match " + JSON.stringify(expected) + " with precision " + precision
+      };
+    }
+  };
+};
+
+var addFiziksEndionCustomMatchers = function () {
+  addMatchers({
+    toBeStringifyEqualTo: toBeStringifyEqualTo,
+    vectorToBeCloseTo: vectorToBeCloseTo
+  });
+};
+
+
 describe("_.sum()", function(){
   it("should sum the elements given a numeric array", function(){
     var result=_.sum([1,20,300,4000]);
@@ -8,3 +50,4 @@ describe("_.sum()", function(){
     expect(result).toBe(0);
   });
 });
+
