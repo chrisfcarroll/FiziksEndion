@@ -11,7 +11,7 @@ var toBeStringifyEqualTo= function () {
 };
 
 var vectorToBeCloseTo= function(){
-  var defaultRequiredPrecision=15;
+  var defaultRequiredPrecision=14;
   return {
     compare: function (actual, expected,precision) {
       var precision= precision!==undefined ? precision : defaultRequiredPrecision;

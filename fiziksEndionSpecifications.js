@@ -1,34 +1,39 @@
-var testCaseData = {
-  newBody1: function () {
-    var location = new Vector3(1,2,3);
-    var momentum = new Vector3(7,8,9);
-    var mass = 20;
-    return {mass:mass,location:location,momentum:momentum};
+var FE = FiziksEndion;
+var Vector3= FE.Vector3;
+var ReferenceFrame= FiziksEndion.ReferenceFrame;
+
+var testCases = {
+
+  bodyData: {
+    newBody1: function () {
+      var location = new Vector3(1, 2, 3);
+      var momentum = new Vector3(7, 8, 9);
+      var mass = 20;
+      return {mass: mass, location: location, momentum: momentum};
+    },
+
+    newBody2: function () {
+      var location = new Vector3(1, 2, 3);
+      var momentum = new Vector3(7, 8, 9);
+      var mass = 100;
+      return {mass: mass, location: location, momentum: momentum};
+    }
   },
 
-  newBody2: function () {
-    var location = new Vector3(1,2,3);
-    var momentum = new Vector3(7,8,9);
-    var mass = 100;
-    return {mass:mass,location:location,momentum:momentum};
-  },
-
-  createBodies: function () {
-    return [this.newBody1(), this.newBody2()];
+  get initialBodies() {
+    return [
+      [this.bodyData.newBody1()],
+      [this.bodyData.newBody1(), this.bodyData.newBody2()],
+      [this.bodyData.newBody1(), this.bodyData.newBody2(), this.bodyData.newBody2(), this.bodyData.newBody1()]
+    ];
   }
 };
 
-var testInitialBodies= [
-  [testCaseData.newBody1()],
-  [testCaseData.newBody1(), testCaseData.newBody2()],
-  [testCaseData.newBody1(), testCaseData.newBody2(), testCaseData.newBody2(), testCaseData.newBody1()]
-];
-
 function doForAllTestInitialBodiesAndAges(callback){
-  for(var i in testInitialBodies){
-    var initialBodies= testInitialBodies[i];
+  for(var i in testCases.initialBodies){
+    var initialBodies= testCases.initialBodies[i];
     var testAges = testAges = [1, 9, 90];
-    for(var j in  testAges){
+    for(var j=0;j<testAges.length;j+=1){
       var age=testAges[j];
 
       callback(initialBodies,age);
@@ -41,8 +46,17 @@ describe("FiziksEndion - a simple mechanics and physics framework. Initializatio
   beforeEach(addFiziksEndionCustomMatchers);
 
   describe("Given a new universe", function () {
-    for(var i in testInitialBodies){
-      var initialBodies= testInitialBodies[i];
+
+    var i, initialBodies;
+
+    beforeEach(function(){
+      initialBodies= testCases.initialBodies[i];
+    });
+
+    for(i in testCases.initialBodies){
+      if(!testCases.initialBodies.hasOwnProperty(i)){continue;}
+
+      initialBodies= testCases.initialBodies[i];
 
       describe("with " + initialBodies.length + " bodies with initial momentum", function () {
         var originalBodyValues = [];
@@ -62,10 +76,11 @@ describe("FiziksEndion - a simple mechanics and physics framework. Initializatio
 
         it("the initial bodies should gain the methods needed to function as bodies added to them as properties.", function () {
           var rf = new ReferenceFrame(initialBodies);
+          expect(rf.universe.bodies.length).toBe(initialBodies.length );
           rf.universe.bodies.forEach(function(b){
-            expect(b.moveBy).toBe(bodyRoot.moveBy);
-            expect(b.velocity).toBe(bodyRoot.velocity);
-            expect(b.applyForce).toBe(bodyRoot.applyForce);
+            expect(b.moveBy).toBe(FE.Body.moveBy);
+            expect(b.velocity).toBe(FE.Body.velocity);
+            expect(b.applyForce).toBe(FE.Body.applyForce);
           });
         });
 
@@ -82,7 +97,44 @@ describe("FiziksEndion - a simple mechanics and physics framework. Initializatio
         });
       });
     }
+
+    describe("When existing javascript objects are used as bodies in the physics engine", function(){
+
+      describe("Body.augment",function(){
+        it("Should add properties to an object so it can function as a body in the physics engine", function () {
+          var initialBody = FE.Body.augment({}, 1, new Vector3(1, 1, 1), Vector3.zero);
+          var rf = new ReferenceFrame([initialBody]);
+          expect(rf.universe.bodies.length).toBe(1);
+          rf.universe.bodies.forEach(function (b) {
+            expect(b.moveBy).toBe(FE.Body.moveBy);
+            expect(b.velocity).toBe(FE.Body.velocity);
+            expect(b.applyForce).toBe(FE.Body.applyForce);
+          });
+        });
+
+        it("except it should throw if an initial body already has an incompatible function of the same name", function () {
+          var initialBody = FE.Body.augment({}, 1, new Vector3(1, 1, 1), Vector3.zero);
+          var rf = new ReferenceFrame([initialBody]);
+          initialBody.moveBy = function (){};
+          expect(function() { new ReferenceFrame([initialBody]); }).toThrow();
+        });
+
+        it("even if an initial body already has that function assigned.", function () {
+          var initialBody = FE.Body.augment({}, 1, new Vector3(1, 1, 1), Vector3.zero);
+          initialBody.moveBy = FE.Body.moveBy;
+          var rf = new ReferenceFrame([initialBody]);
+          rf.universe.bodies.forEach(function (b) {
+            expect(b.moveBy).toBe(FE.Body.moveBy);
+            expect(b.velocity).toBe(FE.Body.velocity);
+            expect(b.applyForce).toBe(FE.Body.applyForce);
+          });
+        });
+
+      });
+    });
+
   });
+
 });
 
 describe("FiziksEndion - Principle of Inertia.", function () {
@@ -176,7 +228,7 @@ describe("FiziksEndion - Conservation of Energy", function () {
       describe("Given a self powered engine applying a constant force to a body for more time", function () {
 
         beforeEach(function(){
-          var bodies = testCaseData.createBodies();
+          var bodies = testCases.bodyData.createBodies();
           new BigSelfPoweredConstantDirectionEngine(new Vector3(10, 11, 12)).attachTo(bodies[0]);
           rfUnderTest = new ReferenceFrame(bodies);
         });
