@@ -46,32 +46,19 @@ var Vector3 = (function () {
     return Vector3;
 })();
 
-/*
-* Represents a body as seen from a reference frame
-*/
-var Body = (function () {
-    function Body(mass, location, momentum) {
-        if (typeof momentum === "undefined") { momentum = Vector3.zero; }
-        this.mass = mass;
-        this.location = location;
-        this.momentum = momentum;
-    }
-    Body.prototype.velocity = function () {
+var bodyRoot = {
+    momentum: Vector3.zero,
+    velocity: function () {
         return this.momentum.timesScalar(1.0 / this.mass);
-    };
-    Body.prototype.moveBy = function (vector) {
+    },
+    moveBy: function (vector) {
         this.location = this.location.add(vector);
-    };
-    Body.prototype.applyForce = function (force, timeInterval) {
+    },
+    applyForce: function (force, timeInterval) {
         this.moveBy(force.timesScalar(timeInterval * timeInterval / this.mass / 2));
         this.momentum = this.momentum.add(force.timesScalar(timeInterval));
-    };
-
-    Body.from = function (body) {
-        return new Body(body.mass, body.location, body.momentum);
-    };
-    return Body;
-})();
+    }
+};
 
 var Universe = (function () {
     function Universe(bodies, _physics, entropy) {
@@ -157,6 +144,11 @@ var Physics = (function () {
 
 function ReferenceFrame(bodies, physics) {
     var physics = physics || Physics.Current;
+    bodies.forEach(function (b) {
+        b.moveBy = bodyRoot.moveBy;
+        b.velocity = bodyRoot.velocity;
+        b.applyForce = bodyRoot.applyForce;
+    });
     this.universe = new Universe(bodies, physics);
     var time = 0;
 
@@ -168,16 +160,6 @@ function ReferenceFrame(bodies, physics) {
             time += timeInterval;
         }
         return time;
-    };
-
-    this.currentMomentum = function () {
-        return this.universe.totalMomentum();
-    };
-    this.currentKineticEnergy = function () {
-        return this.universe.totalKineticEnergy();
-    };
-    this.entropy = function () {
-        return universe.entropy;
     };
 }
 //# sourceMappingURL=fiziksEndion.js.map

@@ -1,8 +1,3 @@
-//// interim solution while I haven't got Jasmine 2 addMatchers() working
-//var expectToBeStringifiedEqual= function(actual,expected){
-//  return expect(JSON.stringify(actual)).toBe(JSON.stringify(expected));
-//}
-
 var toBeStringifyEqualTo= function () {
   return {
     compare: function (actual, expected) {
@@ -14,6 +9,7 @@ var toBeStringifyEqualTo= function () {
     }
   };
 };
+
 var vectorToBeCloseTo= function(){
   var defaultRequiredPrecision=15;
   return {
@@ -50,4 +46,3 @@ describe("_.sum()", function(){
     expect(result).toBe(0);
   });
 });
-

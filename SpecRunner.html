@@ -2,10 +2,16 @@
 <html>
 <head>
   <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
   <title>FiziksEndion Specifications – Jasmine Spec Runner v2.0.0-rc2</title>
 
+  <link href="lib/bootstrap/css/bootstrap.min.css" rel="stylesheet" media="screen">
   <link rel="shortcut icon" type="image/png" href="lib/jasmine-2.0.0-rc2/jasmine_favicon.png">
   <link rel="stylesheet" type="text/css" href="lib/jasmine-2.0.0-rc2/jasmine.css">
+
+  <script src="lib/jquery-1.10.2.js"></script>
+  <script src="lib/bootstrap/js/bootstrap.min.js"></script>
 
   <script src="lib/jasmine-2.0.0-rc2/jasmine.js"></script>
   <script src="lib/jasmine-2.0.0-rc2/jasmine-html.js"></script>
@@ -23,5 +29,18 @@
 </head>
 
 <body>
+<button type="button" class="btn btn-small" data-toggle="collapse" data-target="#designGoalsShow">
+  FiziksEndion Design Goals and Constraints...
+</button>
+  <div id="designGoalsShow" class="collapse">
+    <ul>
+      <li>Provide a reasonably accurate model of the physics being used.</li>
+      <li>Be pluggable. Offer at least 3 physics: Newtonian, Relativistic and 'Simplified 2D'.</li>
+      <li>Be easy to re-use in different contexts. Place only minimal constraints on the client.</li>
+      <li>Be performant enough to use for small games.</li>
+      <li>Javascript style: prefer flexible, prototypical, functional to fixed-form & classical</li>
+      <li>Typescript style: prefer interfaces to classes. Prefer lightweight or minimalist typing over maximalist.</li>
+    </ul>
+  </div>
 </body>
 </html>

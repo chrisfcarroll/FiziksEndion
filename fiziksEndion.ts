@@ -48,34 +48,43 @@ class Vector3 {
 /*
  * Represents a body as seen from a reference frame
  */
-class Body {
+interface Body {
 
-  constructor(public mass : number, public location : Vector3, public momentum: Vector3 = Vector3.zero) {}
+  mass : number;
+  location : Vector3;
+  momentum: Vector3;
 
-  velocity() {
+  velocity() : Vector3;
+  moveBy(vector: Vector3);
+  applyForce(force: Vector3, timeInterval: number);
+}
+
+var bodyRoot= {
+  momentum: Vector3.zero,
+
+  velocity : function() {
     return this.momentum.timesScalar(1.0 / this.mass);
-  }
-  moveBy(vector: Vector3){
+  },
+
+  moveBy : function(vector: Vector3){
     this.location= this.location.add(vector);
-  }
-  applyForce(force: Vector3, timeInterval: number){
+  },
+
+  applyForce : function(force: Vector3, timeInterval: number){
     this.moveBy(force.timesScalar(timeInterval * timeInterval / this.mass / 2));
     this.momentum= this.momentum.add(force.timesScalar(timeInterval));
   }
+};
 
-  static from(body:any){
-    return new Body( <number>body.mass, <Vector3>body.location, <Vector3>body.momentum);
-  }
-}
 
 class Universe {
   constructor(public bodies:Body[], private _physics: Physics = Physics.Current, public entropy:number=0){}
 
-  totalMomentum() {
+  public totalMomentum() {
     return this._physics.principleOfInertia.invariant(this);
   }
 
-  totalKineticEnergy() {
+  public totalKineticEnergy() {
     return this._physics.lawOfConservationOfEnergy.invariant(this);
   }
 }
@@ -159,6 +168,11 @@ class Physics {
 
 function ReferenceFrame(bodies, physics) {
   var physics = physics || Physics.Current;
+  bodies.forEach(b=>{
+    b.moveBy= bodyRoot.moveBy;
+    b.velocity= bodyRoot.velocity;
+    b.applyForce= bodyRoot.applyForce;
+  });
   this.universe = new Universe(bodies, physics);
   var time = 0;
 
@@ -171,9 +185,4 @@ function ReferenceFrame(bodies, physics) {
     }
     return time;
   };
-
-  this.currentMomentum = function(){ return this.universe.totalMomentum();}
-  this.currentKineticEnergy = function(){ return this.universe.totalKineticEnergy();}
-  this.entropy = function(){ return universe.entropy;}
 }
-

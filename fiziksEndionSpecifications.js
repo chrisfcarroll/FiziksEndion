@@ -3,14 +3,14 @@ var testCaseData = {
     var location = new Vector3(1,2,3);
     var momentum = new Vector3(7,8,9);
     var mass = 20;
-    return new Body(mass,location,momentum);
+    return {mass:mass,location:location,momentum:momentum};
   },
 
   newBody2: function () {
     var location = new Vector3(1,2,3);
     var momentum = new Vector3(7,8,9);
     var mass = 100;
-    return new Body(mass,location,momentum);
+    return {mass:mass,location:location,momentum:momentum};
   },
 
   createBodies: function () {
@@ -57,7 +57,16 @@ describe("FiziksEndion - a simple mechanics and physics framework. Initializatio
           var totalOriginalMomentum
             = Vector3.sum(initialBodies.map(function (el) {return el.momentum;}));
           var rf = new ReferenceFrame(initialBodies);
-          expect(rf.currentMomentum()).vectorToBeCloseTo(totalOriginalMomentum);
+          expect(rf.universe.totalMomentum()).vectorToBeCloseTo(totalOriginalMomentum);
+        });
+
+        it("the initial bodies should gain the methods needed to function as bodies added to them as properties.", function () {
+          var rf = new ReferenceFrame(initialBodies);
+          rf.universe.bodies.forEach(function(b){
+            expect(b.moveBy).toBe(bodyRoot.moveBy);
+            expect(b.velocity).toBe(bodyRoot.velocity);
+            expect(b.applyForce).toBe(bodyRoot.applyForce);
+          });
         });
 
         it("the universe should start with the passed-in bodies", function () {
@@ -90,7 +99,7 @@ describe("FiziksEndion - Principle of Inertia.", function () {
                 = Vector3.sum(initialBodies.map(function (b) { return b.momentum; }));
             var agedRF = new ReferenceFrame(initialBodies);
             agedRF.age(age);
-            expect(JSON.stringify(agedRF.currentMomentum())).toBe(JSON.stringify(originalMomentum));
+            expect(JSON.stringify(agedRF.universe.totalMomentum())).toBe(JSON.stringify(originalMomentum));
           })
         });
     });
@@ -140,13 +149,13 @@ describe("FiziksEndion - Conservation of Energy", function () {
         var body1= rfUnderTest.bodies[0];
         var initialEngineEnergy= body1.engines[0].energyStored();
         var initialEntropy= rfUnderTest.entropy();
-        var initialKineticEnergy= rfUnderTest.currentKineticEnergy();
+        var initialKineticEnergy= rfUnderTest.universe.totalKineticEnergy();
 
         rfUnderTest.age(timeInterval);
 
         var finalEngineEnergy= body1.engines[0].energyStored();
         var finalEntropy= rfUnderTest.entropy();
-        var finalKineticEnergy= rfUnderTest.currentKineticEnergy();
+        var finalKineticEnergy= rfUnderTest.universe.totalKineticEnergy();
         expectToBeStringifiedEqual(
           initialEngineEnergy+initialEntropy+initialKineticEnergy,
           finalEngineEnergy  +finalEntropy  +finalKineticEnergy
