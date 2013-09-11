@@ -47,6 +47,8 @@ var FiziksEndion;
 /// <reference path="fiziksEndionVector.ts"/>
 /**
 * @module FiziksEndion. A simple javascript physics engine.
+*
+* Basic usage: rf= new @ReferenceFrame([{mass:10,location: new Vector3(1,2,3), momentum: new Vector3(1,2,3)}, ...]);
 */
 var FiziksEndion;
 (function (FiziksEndion) {
@@ -128,6 +130,10 @@ var FiziksEndion;
         }
     };
 
+    /**
+    * The simplest (and least realistic) engine: Applies a constant force, doesn't change direction
+    * and contains its own energy store.
+    */
     var BigSelfPoweredConstantDirectionEngine = (function () {
         function BigSelfPoweredConstantDirectionEngine(force, energyStored, physics) {
             if (typeof force === "undefined") { force = FiziksEndion.Vector3.zero; }
@@ -139,7 +145,8 @@ var FiziksEndion;
         }
         BigSelfPoweredConstantDirectionEngine.prototype.attachTo = function (body) {
             this.attachedBody = body;
-            body.engines = body.engines || [this];
+            body.engines = body.engines || [];
+            body.engines.push(this);
         };
         return BigSelfPoweredConstantDirectionEngine;
     })();
@@ -163,6 +170,9 @@ var FiziksEndion;
         return UniverseImpl;
     })();
 
+    /**
+    * The example simple implement of a Physics. Doesn't yet deal with rotation. Or gravity ...
+    */
     FiziksEndion.newtonianLinearMechanics = (function () {
         var me = {
             forceFields: [],
@@ -222,14 +232,24 @@ var FiziksEndion;
         return me;
     })();
 
+    /**
+    * The default Physics for new Universes.
+    */
     FiziksEndion.defaultPhysics = FiziksEndion.newtonianLinearMechanics;
 
+    /**
+    * All access to a universe is mediated via a ReferenceFrame.
+    * Most notably, time passes for a ReferenceFrame, not a for a Universe.
+    *
+    * Observer is a synonym.
+    */
     function ReferenceFrame(bodies, physics) {
-        var physics = physics || FiziksEndion.defaultPhysics;
         bodies.forEach(function (b) {
             FiziksEndion.Body.augment(b);
         });
+        var physics = physics || FiziksEndion.defaultPhysics;
         this.universe = new UniverseImpl(bodies, physics);
+
         var time = 0;
 
         this.age = function (timeInterval) {

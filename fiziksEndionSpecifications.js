@@ -205,7 +205,6 @@ describe("FiziksEndion - Conservation of Energy", function () {
     describe("Given the force is a self powered engine applying a constant force to a body", function(){
 
       beforeEach(function () {
-        new FE.BigSelfPoweredConstantDirectionEngine(new Vector3(10, 11, 12)).attachTo(bodies[0]);
         rfUnderTest = new ReferenceFrame(bodies);
       });
 
@@ -213,6 +212,7 @@ describe("FiziksEndion - Conservation of Energy", function () {
       for (var j=0; j < testCases.initialBodies.length; j+=1){
 
         var bodies= testCases.initialBodies[j];
+        new FE.BigSelfPoweredConstantDirectionEngine(new Vector3(10, 11, 12)).attachTo(bodies[0]);
 
         describe("Given " + bodies.length + " bodies in the universe and age " +timeInterval, function () {
 
