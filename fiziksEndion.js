@@ -1,15 +1,5 @@
-/// <reference path="lib/underscore-typed.d.ts" />
-/**
-* @module FiziksEndion. A simple javascript physics engine.
-*/
 var FiziksEndion;
 (function (FiziksEndion) {
-    _.sum = function (list) {
-        return _.reduce(list, function (sumSoFar, nextValue) {
-            return sumSoFar + nextValue;
-        }, 0);
-    };
-
     /**
     * @class Vector3 : 3-d vectors of numbers.
     * Statically typed with functions for basic maths operations.
@@ -52,23 +42,27 @@ var FiziksEndion;
         return Vector3;
     })();
     FiziksEndion.Vector3 = Vector3;
-
+})(FiziksEndion || (FiziksEndion = {}));
+/// <reference path="lib/underscore-typed.d.ts" />
+/// <reference path="fiziksEndionVector.ts"/>
+/**
+* @module FiziksEndion. A simple javascript physics engine.
+*/
+var FiziksEndion;
+(function (FiziksEndion) {
     /**
     * A prototype for creating new instances which implement interface Body.
-    * Helper functions wrap() and augment() turn an existing object into a Body by (respectively)
-    * augmenting it with the required missing functions or putting it in a wrapper.
+    * Helper functions wrap() and augment() turn an existing object into a Body by, respectively,
+    * augmenting it with the required missing functions,
+    * wrapping it in an object having property get/setters which reference the wrapped object.
     */
     FiziksEndion.Body = {
-        momentum: Vector3.zero,
+        momentum: FiziksEndion.Vector3.zero,
         velocity: function () {
             return this.momentum.timesScalar(1.0 / this.mass);
         },
         moveBy: function (vector) {
             this.location = this.location.add(vector);
-        },
-        applyForce: function (force, timeInterval) {
-            this.moveBy(force.timesScalar(timeInterval * timeInterval / this.mass / 2));
-            this.momentum = this.momentum.add(force.timesScalar(timeInterval));
         },
         /**
         * wrap an object so it can be treated as a Body in the physics engine.
@@ -98,8 +92,7 @@ var FiziksEndion;
                 location: location,
                 momentum: momentum,
                 velocity: FiziksEndion.Body.velocity,
-                moveBy: FiziksEndion.Body.moveBy,
-                applyForce: FiziksEndion.Body.applyForce
+                moveBy: FiziksEndion.Body.moveBy
             });
             return wrapper;
         },
@@ -111,19 +104,19 @@ var FiziksEndion;
             if (mass) {
                 object.mass = mass;
             } else if (object.mass === undefined) {
-                throw { error: "object must have a mass to be used as a body." };
+                throw { error: "object must have a mass, or you must specify one, to be used as a body." };
             }
 
             if (location) {
                 object.location = location;
             } else if (object.location === undefined) {
-                throw { error: "object must have a location to be used as a body." };
+                throw { error: "object must have a location, or you must specify one, to be used as a body." };
             }
 
             if (momentum) {
                 object.momentum = momentum;
             } else if (object.momentum === undefined) {
-                object.momentum = Vector3.zero;
+                object.momentum = FiziksEndion.Vector3.zero;
             }
 
             if (object.moveBy !== undefined && object.moveBy !== this.moveBy) {
@@ -131,102 +124,112 @@ var FiziksEndion;
             }
             object.moveBy = FiziksEndion.Body.moveBy;
             object.velocity = FiziksEndion.Body.velocity;
-            object.applyForce = FiziksEndion.Body.applyForce;
             return object;
         }
     };
 
-    var Universe = (function () {
-        function Universe(bodies, _physics, entropy) {
-            if (typeof _physics === "undefined") { _physics = Physics.Current; }
-            if (typeof entropy === "undefined") { entropy = 0; }
-            this.bodies = bodies;
-            this._physics = _physics;
-            this.entropy = entropy;
-        }
-        Universe.prototype.totalMomentum = function () {
-            return this._physics.principleOfInertia.invariant(this);
-        };
-
-        Universe.prototype.totalKineticEnergy = function () {
-            return this._physics.lawOfConservationOfEnergy.invariant(this);
-        };
-        return Universe;
-    })();
-    FiziksEndion.Universe = Universe;
-
     var BigSelfPoweredConstantDirectionEngine = (function () {
-        function BigSelfPoweredConstantDirectionEngine(force, initialEnergy) {
-            if (typeof force === "undefined") { force = Vector3.zero; }
-            if (typeof initialEnergy === "undefined") { initialEnergy = 0; }
+        function BigSelfPoweredConstantDirectionEngine(force, energyStored, physics) {
+            if (typeof force === "undefined") { force = FiziksEndion.Vector3.zero; }
+            if (typeof energyStored === "undefined") { energyStored = 0; }
+            if (typeof physics === "undefined") { physics = FiziksEndion.defaultPhysics; }
+            this.force = force;
+            this.energyStored = energyStored;
+            this.physics = physics;
         }
         BigSelfPoweredConstantDirectionEngine.prototype.attachTo = function (body) {
             this.attachedBody = body;
             body.engines = body.engines || [this];
         };
-
-        BigSelfPoweredConstantDirectionEngine.prototype.applyForce = function (timeInterval) {
-            if (this.attachedBody) {
-                var initialKineticEnergy = Physics.Current.lawOfConservationOfEnergy.kineticEnergy(this.attachedBody);
-                this.attachedBody.applyForce(this.force, timeInterval);
-                var energyUsed = Physics.Current.lawOfConservationOfEnergy.kineticEnergy(this.attachedBody) - initialKineticEnergy;
-                this.energyStored -= energyUsed;
-            }
-        };
         return BigSelfPoweredConstantDirectionEngine;
     })();
     FiziksEndion.BigSelfPoweredConstantDirectionEngine = BigSelfPoweredConstantDirectionEngine;
 
-    var Physics = (function () {
-        function Physics() {
-            this.forceFields = [];
-            this.principleOfInertia = {
+    var UniverseImpl = (function () {
+        function UniverseImpl(bodies, _physics, entropy) {
+            if (typeof _physics === "undefined") { _physics = FiziksEndion.defaultPhysics; }
+            if (typeof entropy === "undefined") { entropy = 0; }
+            this.bodies = bodies;
+            this._physics = _physics;
+            this.entropy = entropy;
+        }
+        UniverseImpl.prototype.totalMomentum = function () {
+            return this._physics.principleOfInertia.invariant(this);
+        };
+
+        UniverseImpl.prototype.totalKineticEnergy = function () {
+            return this._physics.kineticEnergy(this.bodies);
+        };
+        return UniverseImpl;
+    })();
+
+    FiziksEndion.newtonianLinearMechanics = (function () {
+        var me = {
+            forceFields: [],
+            //public kineticEnergy(bodies:Body[])
+            //public kineticEnergy(body:Body)
+            kineticEnergy: function (b) {
+                var _this = this;
+                if (b.momentum) {
+                    return b.momentum.magnitudeSquared() / b.mass / 2;
+                } else {
+                    return _.sum(b.map(function (b) {
+                        return _this.kineticEnergy(b);
+                    }));
+                }
+            },
+            principleOfInertia: {
                 apply: function (bodies, timeInterval) {
                     bodies.forEach(function (unforcedBody) {
                         unforcedBody.moveBy(unforcedBody.momentum.timesScalar(timeInterval / unforcedBody.mass));
                     });
                 },
                 invariant: function (universe) {
-                    return Vector3.sum(universe.bodies.map(function (b) {
+                    return FiziksEndion.Vector3.sum(universe.bodies.map(function (b) {
                         return b.momentum;
                     }));
                 }
-            };
-            this.lawOfConservationOfEnergy = {
+            },
+            lawOfConservationOfEnergy: {
                 apply: function (bodies, timeInterval) {
                     _.filter(bodies, function (body) {
                         return body.engines != undefined;
                     }).forEach(function (body) {
                         (body.engines).forEach(function (engine) {
-                            engine.applyForce(timeInterval);
+                            var initialKineticEnergy = FiziksEndion.newtonianLinearMechanics.kineticEnergy(body);
+
+                            body.moveBy(engine.force.timesScalar(timeInterval * timeInterval / body.mass / 2));
+                            body.momentum = body.momentum.add(engine.force.timesScalar(timeInterval));
+
+                            var energyUsed = FiziksEndion.newtonianLinearMechanics.kineticEnergy(body) - initialKineticEnergy;
+                            engine.energyStored -= energyUsed;
                         });
                     });
                 },
                 invariant: function (universe) {
-                    return _.sum(universe.bodies.map(function (body) {
-                        var sumOfEnergyInAttachedEngines = body.engines ? _.sum((body.engines).map(function (e) {
+                    var sumOfEnergyInAttachedEngines = _.sum(universe.bodies.map(function (body) {
+                        return body.engines ? _.sum(((body.engines)).map(function (e) {
                             return e.energyStored;
                         })) : 0;
-                        return this.lawOfConservationOfEnergy.kineticEnergy(body) + sumOfEnergyInAttachedEngines + universe.entropy;
                     }));
-                },
-                kineticEnergy: function (body) {
-                    return body.momentum.magnitudeSquared() / body.mass / 2;
+
+                    return FiziksEndion.newtonianLinearMechanics.kineticEnergy(universe.bodies) + sumOfEnergyInAttachedEngines + universe.entropy;
                 }
-            };
-            this.timeInvariants = [this.principleOfInertia, this.lawOfConservationOfEnergy];
-        }
-        Physics.Current = new Physics();
-        return Physics;
+            },
+            timeInvariants: []
+        };
+        me.timeInvariants = [me.principleOfInertia, me.lawOfConservationOfEnergy];
+        return me;
     })();
-    FiziksEndion.Physics = Physics;
+
+    FiziksEndion.defaultPhysics = FiziksEndion.newtonianLinearMechanics;
 
     function ReferenceFrame(bodies, physics) {
-        var physics = physics || Physics.Current;
+        var physics = physics || FiziksEndion.defaultPhysics;
         bodies.forEach(function (b) {
             FiziksEndion.Body.augment(b);
         });
-        this.universe = new Universe(bodies, physics);
+        this.universe = new UniverseImpl(bodies, physics);
         var time = 0;
 
         this.age = function (timeInterval) {
@@ -240,5 +243,15 @@ var FiziksEndion;
         };
     }
     FiziksEndion.ReferenceFrame = ReferenceFrame;
+})(FiziksEndion || (FiziksEndion = {}));
+/// <reference path="lib/underscore-typed.d.ts" />
+/// <reference path="fiziksEndionVector.ts"/>
+var FiziksEndion;
+(function (FiziksEndion) {
+    _.sum = function (list) {
+        return _.reduce(list, function (sumSoFar, nextValue) {
+            return sumSoFar + nextValue;
+        }, 0);
+    };
 })(FiziksEndion || (FiziksEndion = {}));
 //# sourceMappingURL=fiziksEndion.js.map

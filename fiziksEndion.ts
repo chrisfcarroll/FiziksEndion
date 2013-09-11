@@ -1,56 +1,9 @@
 /// <reference path="lib/underscore-typed.d.ts" />
+/// <reference path="fiziksEndionVector.ts"/>
 /**
  * @module FiziksEndion. A simple javascript physics engine.
  */
 module FiziksEndion {
-
-  _.sum = function (list) {
-    return _.reduce(list, function (sumSoFar, nextValue) {
-      return sumSoFar + nextValue;
-    }, 0);
-  };
-
-  /**
-   * @class Vector3 : 3-d vectors of numbers.
-   * Statically typed with functions for basic maths operations.
-   * Instances of Vector3 are intended to be immutable, so operations return new instances.
-   */
-  export class Vector3 {
-    constructor(public x:number, public y:number, public z:number) {
-    }
-    magnitudeSquared() {
-      return this.x * this.x + this.y * this.y + this.z * this.z;
-    }
-    magnitude() {
-      return Math.sqrt(this.magnitudeSquared());
-    }
-    direction() {
-      var size = this.magnitude();
-      return new Vector3(this.x / size, this.y / size, this.z / size);
-    }
-    timesScalar(scalar:number) {
-      return new Vector3(this.x * scalar, this.y * scalar, this.z * scalar);
-    }
-    add(right) {
-      return new Vector3(this.x + right.x, this.y + right.y, this.z + right.z);
-    }
-
-    /**
-     * The zero vector is Vector3(0,0,0);
-     */
-    static zero = new Vector3(0, 0, 0);
-
-    static sum = function (arrayOfVector3s:Vector3[]) {
-      var totalx = 0, totaly = 0, totalz = 0;
-      arrayOfVector3s.forEach(function (el) {
-        totalx += el.x;
-        totaly += el.y;
-        totalz += el.z;
-      });
-      return new Vector3(totalx, totaly, totalz);
-    };
-
-  }
 
   /*
    * Represents a body as seen from a reference frame
@@ -61,13 +14,13 @@ module FiziksEndion {
     momentum: Vector3;
     velocity() : Vector3;
     moveBy(vector:Vector3);
-    applyForce(force:Vector3, timeInterval:number);
   }
 
   /**
    * A prototype for creating new instances which implement interface Body.
-   * Helper functions wrap() and augment() turn an existing object into a Body by (respectively)
-   * augmenting it with the required missing functions or putting it in a wrapper.
+   * Helper functions wrap() and augment() turn an existing object into a Body by, respectively,
+   * augmenting it with the required missing functions,
+   * wrapping it in an object having property get/setters which reference the wrapped object.
    */
   export var Body = {
     momentum: Vector3.zero,
@@ -78,11 +31,6 @@ module FiziksEndion {
 
     moveBy: function (vector:Vector3) {
       this.location = this.location.add(vector);
-    },
-
-    applyForce: function (force:Vector3, timeInterval:number) {
-      this.moveBy(force.timesScalar(timeInterval * timeInterval / this.mass / 2));
-      this.momentum = this.momentum.add(force.timesScalar(timeInterval));
     },
 
     /**
@@ -103,8 +51,7 @@ module FiziksEndion {
         location : location,
         momentum : momentum,
         velocity : Body.velocity,
-        moveBy   : Body.moveBy,
-        applyForce : Body.applyForce
+        moveBy   : Body.moveBy
       });
       return wrapper;
     },
@@ -117,13 +64,13 @@ module FiziksEndion {
       if(mass){
         object.mass=mass;
       }else if (object.mass === undefined){
-        throw { error : "object must have a mass to be used as a body." };
+        throw { error : "object must have a mass, or you must specify one, to be used as a body." };
       }
 
       if(location){
         object.location=location;
       }else if(object.location === undefined){
-       throw { error : "object must have a location to be used as a body." };
+       throw { error : "object must have a location, or you must specify one, to be used as a body." };
      }
 
      if(momentum){
@@ -137,13 +84,41 @@ module FiziksEndion {
       }
      object.moveBy = Body.moveBy;
      object.velocity = Body.velocity;
-     object.applyForce = Body.applyForce;
      return object;
    }
   };
 
-  export class Universe {
-    constructor(public bodies:Body[], private _physics:Physics = Physics.Current, public entropy:number = 0) {
+  /**
+   * An @Engine uses up @energyStored when its @force is applied to move a @Body
+   */
+  export interface Engine {
+    attachedBody : Body;
+    energyStored : number;
+    force: Vector3;
+    attachTo(body:Body):void;
+  }
+
+  export class BigSelfPoweredConstantDirectionEngine {
+    attachedBody:Body;
+
+    constructor(public force:Vector3 = Vector3.zero, public energyStored:number = 0, private physics:Physics= FiziksEndion.defaultPhysics) {
+    }
+
+    attachTo(body) {
+      this.attachedBody = body;
+      body.engines = body.engines || [this];
+    }
+  }
+
+  export interface Universe {
+    bodies : Body[];
+    entropy: number;
+    totalMomentum(): Vector3;
+    totalKineticEnergy(): number;
+  }
+
+  class UniverseImpl implements Universe {
+    constructor(public bodies:Body[], private _physics:Physics = defaultPhysics, public entropy:number = 0) {
     }
 
     public totalMomentum() {
@@ -151,94 +126,94 @@ module FiziksEndion {
     }
 
     public totalKineticEnergy() {
-      return this._physics.lawOfConservationOfEnergy.invariant(this);
+      return this._physics.kineticEnergy(this.bodies);
     }
   }
 
-  export interface Engine {
-    attachedBody : Body;
-    energyStored : number;
-    force: Vector3;
-    applyForce(timeInterval:number);
+  export interface InvariantLaw<T>{
+    apply(bodies: Body[], timeInterval:number) : void;
+    invariant(universe:Universe) : T;
   }
 
-  export class BigSelfPoweredConstantDirectionEngine {
-    attachedBody:Body;
-    energyStored:number;
-    force:Vector3;
-
-    constructor(force:Vector3 = Vector3.zero, initialEnergy:number = 0) {
-    }
-
-    attachTo(body) {
-      this.attachedBody = body;
-      body.engines = body.engines || [this];
-    }
-
-    applyForce(timeInterval) {
-      if (this.attachedBody) {
-        var initialKineticEnergy = Physics.Current.lawOfConservationOfEnergy.kineticEnergy(this.attachedBody);
-        this.attachedBody.applyForce(this.force, timeInterval);
-        var energyUsed = Physics.Current.lawOfConservationOfEnergy.kineticEnergy(this.attachedBody) - initialKineticEnergy;
-        this.energyStored -= energyUsed;
-      }
-    }
+  export interface Physics {
+    forceFields : Object[];
+    kineticEnergy(bodies:Body[]) : number;
+    kineticEnergy(body:Body) : number;
+    principleOfInertia : InvariantLaw<Vector3>;
+    lawOfConservationOfEnergy : InvariantLaw<number>;
+    timeInvariants : InvariantLaw<any>[];
   }
 
-  export class Physics {
+  export var newtonianLinearMechanics : Physics = function(){
+    var me = {
 
-    static Current = new Physics();
+      forceFields : [],
 
-    forceFields = [];
+        //public kineticEnergy(bodies:Body[])
+        //public kineticEnergy(body:Body)
+        kineticEnergy: function(b:any){
+          if(b.momentum ){
+            return b.momentum.magnitudeSquared() / b.mass / 2;
+          }else{
+            return _.sum(b.map(b => this.kineticEnergy(b)));
+          }
+        },
 
-    principleOfInertia = {
-      apply: function (bodies, timeInterval) {
-        bodies.forEach(function (unforcedBody) {
-          unforcedBody.moveBy(unforcedBody.momentum.timesScalar(timeInterval / unforcedBody.mass));
-        });
-      },
-
-      invariant: function (universe:Universe) {
-        return Vector3.sum(universe.bodies.map(b=>b.momentum));
-      }
-
-    };
-
-    lawOfConservationOfEnergy = {
-      apply: function (bodies, timeInterval) {
-        _.filter(bodies, function (body) {
-          return body.engines != undefined;
-        })
-          .forEach(function (body) {
-            (<Engine[]>body.engines).forEach(function (engine) {
-              engine.applyForce(timeInterval);
-            });
+      principleOfInertia : {
+        apply: function (bodies:Body[], timeInterval:number) : void {
+          bodies.forEach(function (unforcedBody) {
+            unforcedBody.moveBy(unforcedBody.momentum.timesScalar(timeInterval / unforcedBody.mass));
           });
+        },
+
+        invariant: function (universe: Universe) : Vector3 {
+          return Vector3.sum(universe.bodies.map(b=>b.momentum));
+        }
       },
 
-      invariant: function (universe:Universe) {
-        return _.sum(universe.bodies.map(function (body) {
-          var sumOfEnergyInAttachedEngines = body.engines
-            ? _.sum((<Engine[]>body.engines).map(function (e) {
-            return e.energyStored;
-          }))
-            : 0;
-          return this.lawOfConservationOfEnergy.kineticEnergy(body) + sumOfEnergyInAttachedEngines + universe.entropy;
-        }));
-      },
+      lawOfConservationOfEnergy : {
 
-      kineticEnergy: function (body) {
-        return body.momentum.magnitudeSquared() / body.mass / 2;
-      }
+        apply: function (bodies:Body[], timeInterval:number) : void {
+          _.filter(bodies, function (body) {
+            return body.engines != undefined;
+          })
+            .forEach(function (body) {
+              (<Engine[]>body.engines).forEach(function (engine) {
+
+                var initialKineticEnergy = newtonianLinearMechanics.kineticEnergy(body);
+
+                body.moveBy(engine.force.timesScalar(timeInterval * timeInterval / body.mass / 2));
+                body.momentum = body.momentum.add(engine.force.timesScalar(timeInterval));
+
+                var energyUsed = newtonianLinearMechanics.kineticEnergy(body) - initialKineticEnergy;
+                engine.energyStored -= energyUsed;
+              });
+            });
+        },
+
+        invariant: function (universe:Universe) : number {
+
+          var sumOfEnergyInAttachedEngines = _.sum(
+            universe.bodies.map(
+              body =>  body.engines ? _.sum( (<Engine[]>(body.engines)).map(e=>e.energyStored) )
+                                    : 0
+            ));
+
+          return newtonianLinearMechanics.kineticEnergy(universe.bodies) + sumOfEnergyInAttachedEngines + universe.entropy;
+        }
+      },
+      timeInvariants : [ ]
     };
+    me.timeInvariants= [me.principleOfInertia, me.lawOfConservationOfEnergy];
+    return me;
+  }();
 
-    timeInvariants = [ this.principleOfInertia, this.lawOfConservationOfEnergy ];
-  }
+  export var defaultPhysics= newtonianLinearMechanics;
 
   export function ReferenceFrame(bodies, physics) {
-    var physics = physics || Physics.Current;
+    var physics = physics || FiziksEndion.defaultPhysics;
     bodies.forEach(b=> { Body.augment(b); });
-    this.universe = new Universe(bodies, physics);
+    this.universe = new UniverseImpl(bodies, physics);
     var time = 0;
 
     this.age = function (timeInterval) {

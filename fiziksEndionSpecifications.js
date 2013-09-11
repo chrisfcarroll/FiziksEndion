@@ -1,7 +1,7 @@
 var FE = FiziksEndion;
 var Vector3= FE.Vector3;
 var ReferenceFrame= FiziksEndion.ReferenceFrame;
-
+var requiredPrecision=12;
 var testCases = {
 
   bodyData: {
@@ -177,72 +177,84 @@ describe("FiziksEndion - Principle of Inertia.", function () {
   });
 });
 
-
 describe("FiziksEndion - Conservation of Energy", function () {
 
-  beforeEach(addFiziksEndionCustomMatchers());
+  beforeEach(addFiziksEndionCustomMatchers);
+
+  describe("When creating an Engine and attaching it to a body", function(){
+
+    var e = new FE.BigSelfPoweredConstantDirectionEngine(1,99999);
+    var bodies= testCases.initialBodies[0];
+    e.attachTo(bodies[0]);
+
+    it("should be initialized with given values", function(){
+      expect(e.energyStored).toBe(99999);
+      expect(e.force).toBe(1);
+    });
+
+    it("should be findable on the body", function(){
+      expect(bodies[0].engines.length).toBe(1);
+      expect(bodies[0].engines[0]).toBe(e);
+    });
+  });
 
   var rfUnderTest;
 
   describe("Given forces obeying Newton's 2nd law, energy should be conserved.", function () {
 
-    var theMomentumShouldIncreaseByTheIntegralOfTheForceWrtTime = function (timeInterval) {
-      it("The momentum should increase by the force per unit time given time elapsed is " + timeInterval, function () {
-        var body1= rfUnderTest.bodies[0];
-        var initialMomentum = _.clone(body1.momentum);
-        var force = body1.engines[0].force;
-        rfUnderTest.age(timeInterval);
-        expect(JSON.stringify(body1.momentum)).toBe(JSON.stringify( initialMomentum.add(force.timesScalar(timeInterval) )));
+    describe("Given the force is a self powered engine applying a constant force to a body", function(){
+
+      beforeEach(function () {
+        new FE.BigSelfPoweredConstantDirectionEngine(new Vector3(10, 11, 12)).attachTo(bodies[0]);
+        rfUnderTest = new ReferenceFrame(bodies);
       });
-    };
 
-    var theEnginesEnergyDecreaseEqualKineticEnergyAddedPlusEntropyIncrease = function(timeInterval){
-      it("the engine's energy decrease Should equal the kinetic energy added plus the entropy increase", function(){
-        var body1= rfUnderTest.bodies[0];
-        var initialEngineEnergy= body1.engines[0].energyStored();
-        var initialEntropy= rfUnderTest.entropy();
-        var initialKineticEnergy= rfUnderTest.universe.totalKineticEnergy();
+      for (var timeInterval in {1:1, 9:9} )
+      for (var j=0; j < testCases.initialBodies.length; j+=1){
 
-        rfUnderTest.age(timeInterval);
+        var bodies= testCases.initialBodies[j];
 
-        var finalEngineEnergy= body1.engines[0].energyStored();
-        var finalEntropy= rfUnderTest.entropy();
-        var finalKineticEnergy= rfUnderTest.universe.totalKineticEnergy();
-        expectToBeStringifiedEqual(
-          initialEngineEnergy+initialEntropy+initialKineticEnergy,
-          finalEngineEnergy  +finalEntropy  +finalKineticEnergy
-          );
-      });
-    }
+        describe("Given " + bodies.length + " bodies in the universe and age " +timeInterval, function () {
 
-    var theLocationShouldChangeByThePathIntegralOfTheForceAlongTheLocation = function (timeInterval, expected) {
-      it("The momentum should increase by the force per unit time given time elapsed is " + timeInterval, function () {
-        var body1= rfUnderTest.bodies[0];
-        var initialLocation = _.clone(body1.location);
-        rfUnderTest.age(timeInterval);
-        expect(JSON.stringify(body1.location)).toBe(JSON.stringify(expected));
-      });
-    };
+          it("The momentum should increase by the force per unit time given time elapsed is " + timeInterval, function () {
+            var body1 = rfUnderTest.universe.bodies[0];
+            var initialMomentum = _.clone(body1.momentum);
+            var force = body1.engines[0].force;
+            rfUnderTest.age(timeInterval);
+            expect(JSON.stringify(body1.momentum)).toBe(JSON.stringify(initialMomentum.add(force.timesScalar(timeInterval))));
+          });
 
-    function describeGivenAConstantForceApplied(timeInterval) {
-      describe("Given a self powered engine applying a constant force to a body for more time", function () {
+          it("the engine's energy decrease Should equal the kinetic energy added plus the entropy increase", function () {
+            var body1 = rfUnderTest.universe.bodies[0];
 
-        beforeEach(function(){
-          var bodies = testCases.bodyData.createBodies();
-          new BigSelfPoweredConstantDirectionEngine(new Vector3(10, 11, 12)).attachTo(bodies[0]);
-          rfUnderTest = new ReferenceFrame(bodies);
+            var initialEngineEnergy = body1.engines[0].energyStored;
+            var initialEntropy = rfUnderTest.universe.entropy;
+            var initialKineticEnergy = rfUnderTest.universe.totalKineticEnergy();
+
+            rfUnderTest.age(timeInterval);
+
+            var finalEngineEnergy = body1.engines[0].energyStored;
+            var finalEntropy = rfUnderTest.universe.entropy;
+            var finalKineticEnergy = rfUnderTest.universe.totalKineticEnergy();
+
+            expect(initialEngineEnergy + initialEntropy + initialKineticEnergy)
+             .toBeCloseToP(finalEngineEnergy + finalEntropy + finalKineticEnergy, requiredPrecision);
+          });
+
         });
 
-        theMomentumShouldIncreaseByTheIntegralOfTheForceWrtTime(timeInterval);
-        theEnginesEnergyDecreaseEqualKineticEnergyAddedPlusEntropyIncrease(timeInterval);
-      });
-    };
+        //    WIP. Next To Do:
+        //    describe("The momentum should change by the path integral of the force along the location", function(){
+        //      it("The momentum should increase by the force per unit time given time elapsed is " + timeInterval, function () {
+        //        var body1 = rfUnderTest.bodies[0];
+        //        var initialLocation = _.clone(body1.location);
+        //        rfUnderTest.age(timeInterval);
+        //        expect(JSON.stringify(body1.location)).toBe(JSON.stringify(expected));
+        //      });
+        //    });
 
-    //describeGivenAConstantForceApplied(1);
-    //describeGivenAConstantForceApplied(9);
-
-    describe("Current work in progress, tests not written.",function(){});
-
+      }
+    });
   });
 
 });
