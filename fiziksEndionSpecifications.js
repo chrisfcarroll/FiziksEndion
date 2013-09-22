@@ -243,15 +243,13 @@ describe("FiziksEndion - Conservation of Energy", function () {
 
         });
 
-        //    WIP. Next To Do:
-        //    describe("The momentum should change by the path integral of the force along the location", function(){
-        //      it("The momentum should increase by the force per unit time given time elapsed is " + timeInterval, function () {
-        //        var body1 = rfUnderTest.bodies[0];
-        //        var initialLocation = _.clone(body1.location);
-        //        rfUnderTest.age(timeInterval);
-        //        expect(JSON.stringify(body1.location)).toBe(JSON.stringify(expected));
-        //      });
-        //    });
+        it("The change in momentum should equal force * time (integral of the force w.r.t time)", function(){
+          var body1 = rfUnderTest.universe.bodies[0];
+          var initialMomentum = _.clone(body1.momentum);
+          var expectedChange= body1.engines[0].force.timesScalar(timeInterval);
+          rfUnderTest.age(timeInterval);
+          expect(JSON.stringify(body1.momentum)).toBe(JSON.stringify( initialMomentum.add(expectedChange) ));
+        });
 
       }
     });
